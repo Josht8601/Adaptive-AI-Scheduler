@@ -1,5 +1,5 @@
 # scheduler/optimizer.py
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 
 import numpy as np
 import pandas as pd
@@ -9,16 +9,28 @@ from .models import UserPrefs, Task
 # fixed events are already handled when building 'blocked' in scheduler.py
 
 
-def build_blocked_mask(slots: pd.DataFrame,
-                       fixed_df: pd.DataFrame,
-                       prefs: UserPrefs) -> np.ndarray:
+def build_blocked_mask(slots: pd.DataFrame, fixed_df: pd.DataFrame, prefs: UserPrefs,
+                       missed_intervals: List[Tuple[pd.Timestamp, pd.Timestamp]],
+                       start_from: Optional[pd.Timestamp],) -> np.ndarray:
+
     blocked = np.zeros(len(slots), dtype=bool)
+
+    if start_from is not None:
+        blocked |= (slots["ds"] < start_from).values
+
     if not fixed_df.empty:
         for _, r in fixed_df.iterrows():
             mask = (slots["ds"] >= r["start"]) & (slots["ds"] < r["end"])
             blocked |= mask.values
+
     if not prefs.weekend_ok:
         blocked |= (slots["is_weekend"] == 1).values
+
+    # missed intervals (don’t reuse these times)
+    for s, e in missed_intervals:
+        mask = (slots["ds"] >= s) & (slots["ds"] < e)
+        blocked |= mask.values
+
     return blocked
 
 
@@ -68,6 +80,8 @@ def optimize_schedule(
     tasks: List[Task],
     prefs: UserPrefs,
     fixed_df: pd.DataFrame,
+    missed_intervals: List[Tuple[pd.Timestamp, pd.Timestamp]],
+    start_from: Optional[pd.Timestamp] = None,
 ) -> pd.DataFrame:
     """
     Run CP-SAT to place tasks into slots.
@@ -87,7 +101,7 @@ def optimize_schedule(
     else:
         tasks_df = pd.DataFrame(columns=["id", "label", "dur_h", "priority", "latest"])
 
-    blocked = build_blocked_mask(slots, fixed_df, prefs)
+    blocked = build_blocked_mask(slots, fixed_df, prefs, missed_intervals, start_from)
     slot_minutes = prefs.slot_minutes
 
     model = cp_model.CpModel()

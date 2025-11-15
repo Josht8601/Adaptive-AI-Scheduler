@@ -1,6 +1,6 @@
 # scheduler/scheduler.py
 from datetime import datetime
-from typing import List
+from typing import List, Optional, Tuple
 
 import pandas as pd
 
@@ -12,18 +12,15 @@ from .optimizer import optimize_schedule
 def generate_schedule(week_start: datetime,
                       prefs: UserPrefs,
                       fixed_events: List[FixedEvent],
-                      tasks: List[Task]) -> pd.DataFrame:
+                      tasks: List[Task],
+                      missed_intervals: Optional[List[Tuple[pd.Timestamp, pd.Timestamp]]] = None,
+                      start_from: Optional[pd.Timestamp] = None) -> pd.DataFrame:
     """
-    Top-level function to generate a weekly schedule.
+    Generate a weekly schedule.
 
-    Args:
-        week_start: tz-aware datetime for the start of the week (e.g., Monday 00:00).
-        prefs: User preferences.
-        fixed_events: list of FixedEvent (non-movable).
-        tasks: list of Task (movable).
-
-    Returns:
-        scheduled_df: dataframe with columns [id, label, start, end, priority]
+    missed_intervals: list of (start, end) ranges that should not be reused.
+    start_from: earliest datetime that tasks are allowed to be scheduled at.
+                Any slots before this time will be treated as blocked.
     """
     # Sanity: ensure week_start is tz-aware
     if week_start.tzinfo is None:
@@ -43,6 +40,8 @@ def generate_schedule(week_start: datetime,
         tasks=tasks,
         prefs=prefs,
         fixed_df=fixed_df,
+        missed_intervals=missed_intervals or [],
+        start_from=start_from, 
     )
 
     return scheduled_df, slots
