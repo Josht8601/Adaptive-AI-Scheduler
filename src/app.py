@@ -1,3 +1,5 @@
+import os
+import csv
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -7,6 +9,34 @@ from streamlit_calendar import calendar
 
 from scheduler.models import UserPrefs, FixedEvent, Task
 from scheduler.scheduler import generate_schedule
+
+from prometheus_client import start_http_server, Summary, Counter
+import time
+
+
+# ✅ Create metric only once
+if "SCHEDULE_TIME" not in st.session_state:
+    st.session_state.SCHEDULE_TIME = Summary(
+        "schedule_generation_seconds",
+        "Time spent generating weekly AI schedule",
+    )
+SCHEDULE_TIME = st.session_state.SCHEDULE_TIME
+
+# ✅ Create feedback counter only once
+if "FEEDBACK_COUNTER" not in st.session_state:
+    st.session_state.FEEDBACK_COUNTER = Counter(
+        "schedule_feedback_total",
+        "Count of feedback submissions by rating",
+        ["rating"],  # label = rating 1–5
+    )
+FEEDBACK_COUNTER = st.session_state.FEEDBACK_COUNTER
+
+
+# ✅ Start metrics server only once
+if "metrics_started" not in st.session_state:
+    start_http_server(8000)
+    st.session_state.metrics_started = True
+
 
 def datetime_input(label: str, key: str):
     """
@@ -180,14 +210,15 @@ if st.button("Generate Schedule"):
         # Week entirely in the past → allow full week (or you could block entirely)
         start_from = week_start
 
-    scheduled_df, slots = generate_schedule(
-        week_start=week_start,
-        prefs=st.session_state.prefs,
-        fixed_events=st.session_state.fixed_events,
-        tasks=st.session_state.tasks,
-        missed_intervals=st.session_state.missed_intervals,
-        start_from=start_from,     # 👈 NEW
-    )
+    with SCHEDULE_TIME.time():
+        scheduled_df, slots = generate_schedule(
+            week_start=week_start,
+            prefs=st.session_state.prefs,
+            fixed_events=st.session_state.fixed_events,
+            tasks=st.session_state.tasks,
+            missed_intervals=st.session_state.missed_intervals,
+            start_from=start_from,     # 👈 NEW
+        )
 
     st.session_state.schedule_df = scheduled_df
     st.session_state.slots = slots
@@ -311,3 +342,48 @@ if not st.session_state.schedule_df.empty:
         st.write("No dynamic scheduled events to mark as missed.")
 else:
     st.write("Generate a schedule first.")
+
+
+st.markdown("---")
+st.markdown("### Feedback on the AI scheduler")
+
+st.write(
+    "Rate how useful this schedule was for you and, if you want, leave a short comment. "
+    "This feedback helps improve future versions of the assistant."
+)
+
+with st.form("feedback_form"):
+    rating = st.slider(
+        "Overall, how satisfied are you with this schedule?",
+        min_value=1,
+        max_value=5,
+        value=4,
+        help="1 = very dissatisfied, 5 = very satisfied",
+    )
+    comment = st.text_area(
+        "Optional: What worked well or what should be improved?",
+        ""
+    )
+    submitted = st.form_submit_button("Submit feedback")
+
+if submitted:
+    tz = st.session_state.prefs.tz
+    ts = pd.Timestamp.now(tz=tz)
+
+    log_path = "feedback_log.csv"
+    row = {
+        "timestamp": ts.isoformat(),
+        "rating": int(rating),
+        "comment": comment.replace("\n", " "),
+    }
+
+    file_exists = os.path.isfile(log_path)
+    with open(log_path, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=row.keys())
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(row)
+
+    FEEDBACK_COUNTER.labels(rating=rating).inc()
+
+    st.success("Thank you for your feedback!")
