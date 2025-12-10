@@ -29,3 +29,90 @@
    - **videos/**: Contains a video demoing the AI Systems functionality
   
    - **documentation/**: Contains all written materials that explain the design, functionality, and development process of the Adaptive AI Scheduling Assistant. It serves as the primary reference for understanding how the system works, how to run it, and the reasoning behind key architectural decisions.
+
+3. **System Entry Point**
+
+   The system’s main entry point is app.py, which launches the Streamlit-based interface for interacting with the Adaptive AI Scheduling Assistant. This interface collects user inputs, displays the weekly calendar, and connects directly to the backend scheduling logic.
+
+   Running the system locally
+   - uv run streamlit run app.py
+
+   Running the Application in a Containerized Environment
+   - docker-compose up --build
+   - Open the UI: http://localhost:7860
+     
+4. **Video Demonstration**
+   - https://youtu.be/-sUlQX7xHqQ
+
+5. **Deployment Strategy**
+
+   **Deployment Method: Docker Containers**
+
+   Docker is used as the primary deployment mechanism for this system. By defining the runtime environment within a Dockerfile, the application can be built into a standardized image that includes the Python         environment, project dependencies, and the Streamlit entry point. This ensures that the application runs reliably across machines without requiring users to manually install dependencies or configure              environments.
+
+   Key benefits of using Docker include:
+   - Consistent execution across development, testing, and production systems.
+   - Isolation of dependencies to avoid conflicts with host environments.
+   - Simplified distribution and versioning of the application image.
+   - Compatibility with cloud platforms and orchestration tools.
+
+   The full build and runtime configuration can be found in deployment/Dockerfile.
+
+   **Orchestration with Docker Compose**
+
+   In addition to Docker alone, the system supports deployment through Docker Compose, which automates container setup and makes multi-service deployments easier. Docker Compose is particularly useful as the         project expands to include monitoring services such as Prometheus or additional backend components.
+
+   The docker-compose.yml file handles:
+   - Building the application image.
+   - Mapping container ports to host ports.
+   - Managing container lifecycle with a single command.
+
+   Using Docker Compose also prepares the project for future scaling or integration with services such as databases, API gateways, or monitoring dashboards.
+
+   **Deployment Instructions**
+
+   The following commands summarize how the system is deployed using Docker-based infrastructure:
+
+   - Build the application image: docker build -t ai-scheduler .
+   - Run the container: docker run -p 8501:8501 ai-scheduler
+   - Start the application using Docker Compose: docker-compose up --build
+   - Stop all running containers: docker-compose down
+
+   Once deployed, the application becomes accessible through a web browser at http://localhost:7860.
+
+   **Reference**
+
+   All containerization instructions, scripts, and build configuration details can be found in the deployment directory, specifically in:
+   - deployment/Dockerfile
+   - deployment/docker-compose.yml
+
+6. **Monitoring and Metrics**
+
+   To ensure reliable operation and gain visibility into system performance, the Adaptive AI Scheduling Assistant incorporates a lightweight monitoring stack based on Prometheus and (optionally) Grafana. These tools provide insight into resource usage, application behavior, and system health, making it easier to diagnose issues, track performance trends, and evaluate the scheduler under different workloads.
+
+   Prometheus
+   Prometheus is used as the primary metrics collection tool. It periodically scrapes exposed metrics from the containerized application and stores them in a time-series database. The monitoring configuration—  including scrape intervals and target endpoints—is defined in the monitoring/prometheus.yml file.
+
+   Grafana (Optional)
+   Grafana may be added for visualizing Prometheus data through customizable dashboards. Although not required for the core system, Grafana provides a powerful interface for observing trends such as CPU usage, memory consumption, response latency, and model inference times. It can be easily integrated in future deployments.
+
+   Setup Instructions
+   - To enable monitoring, the following steps are used:
+   - Ensure the Prometheus configuration file (prometheus.yml) is placed inside the monitoring directory. This file defines which endpoints Prometheus will scrape and how often.
+   - Add a Prometheus service to a docker-compose.yml file if running in a containerized environment. This typically involves mapping configuration files and exposing the Prometheus port (9090).
+   - Run Prometheus alongside the application container so it can scrape metrics from the application’s monitoring endpoint.
+   - (Optional) Deploy Grafana through Docker Compose and configure it to read metrics from the Prometheus service. This allows visual dashboards to be created using prebuilt or custom panels.
+
+   When the monitoring stack is running, Prometheus becomes accessible at http://localhost:9090, and Grafana—if enabled—is available at http://localhost:3000.
+
+   The monitoring setup is designed to capture essential performance and system behavior metrics. These may include:
+   - CPU utilization: Indicates how heavily the scheduling engine and Prophet model are being used.
+   - Memory usage: Helps detect memory leaks or inefficient data handling.
+   - Request handling time: Captures how long it takes the system to generate a schedule, useful for evaluating optimization complexity.
+   - Container health metrics: Includes uptime, restarts, and resource constraints.
+   - Application-level metrics (optional): Custom metrics may be added in future versions, such as how often users trigger re-scheduling, the number of tasks per request, or average optimization time.
+
+   Together, these metrics provide insight into the performance and stability of the scheduling system and form the foundation for future optimization and scaling decisions.
+
+7. **Project Documentation**
+   - documentation/AI Systems Project Report.pdf
