@@ -1,3 +1,5 @@
+<title>Adaptive AI Scheduler</title>
+
 1. **Project Overview**
 
    This project focuses on building an Adaptive AI Scheduler that makes everyday planning feel more flexible and realistic. Traditional calendars stay the same even when plans change, which can make it hard to stay on track. My system identifies which events are fixed and which tasks can be moved, and it automatically reorganizes the schedule when something is missed. It uses constraint based optimization and simple forecasting to update the calendar in real time while still respecting the user’s preferences and time windows. The overall goal is to create a scheduling experience that adapts as the day changes and helps reduce stress and improve productivity.
