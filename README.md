@@ -1,4 +1,4 @@
-<title>Adaptive AI Scheduler</title>
+# Adaptive AI Scheduler
 
 1. **Project Overview**
 
